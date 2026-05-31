@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useEffect, useRef } from "react";
 
 const ENCOURAGEMENTS = [
   "את חזקה ממה שאת חושבת 💪",
@@ -67,22 +67,54 @@ const MEALS = {
 
 const RAND = arr => arr[Math.floor(Math.random() * arr.length)];
 
+// localStorage helpers
+const load = (key, fallback) => {
+  try {
+    const v = localStorage.getItem(key);
+    return v ? JSON.parse(v) : fallback;
+  } catch { return fallback; }
+};
+const save = (key, val) => {
+  try { localStorage.setItem(key, JSON.stringify(val)); } catch {}
+};
+
+// Reset daily data if it's a new day
+const todayStr = () => new Date().toISOString().slice(0, 10);
+const checkAndResetDaily = () => {
+  const lastDay = localStorage.getItem("shir_last_day");
+  const today = todayStr();
+  if (lastDay !== today) {
+    localStorage.removeItem("shir_water");
+    localStorage.removeItem("shir_checkin");
+    localStorage.removeItem("shir_meals");
+    localStorage.setItem("shir_last_day", today);
+  }
+};
+checkAndResetDaily();
+
 export default function App() {
   const [screen, setScreen] = useState("home");
-  const [water, setWater] = useState(0);
-  const [checkin, setCheckin] = useState({ protein: null, veggies: null });
-  const [meals, setMeals] = useState({ breakfast: null, lunch: null, dinner: null });
+  const [water, setWater] = useState(() => load("shir_water", 0));
+  const [checkin, setCheckin] = useState(() => load("shir_checkin", { protein: null, veggies: null }));
+  const [meals, setMeals] = useState(() => load("shir_meals", { breakfast: null, lunch: null, dinner: null }));
   const [expandedMeal, setExpandedMeal] = useState(null);
   const [prepVisible, setPrepVisible] = useState(null);
-  const [weightLog, setWeightLog] = useState([
+  const [weightLog, setWeightLog] = useState(() => load("shir_weight", [
     { date: "01/05", weight: 90 }, { date: "08/05", weight: 89.5 }, { date: "15/05", weight: 89 },
-  ]);
+  ]));
   const [newWeight, setNewWeight] = useState("");
   const [tip, setTip] = useState(null);
-  const [chatMessages, setChatMessages] = useState([
+  const [chatMessages, setChatMessages] = useState(() => load("shir_chat", [
     { role: "assistant", text: "היי שיר! שואלי כל מה שצריכה 😊" }
-  ]);
+  ]));
   const [chatInput, setChatInput] = useState("");
+
+  // Save to localStorage on every change
+  useEffect(() => { save("shir_water", water); }, [water]);
+  useEffect(() => { save("shir_checkin", checkin); }, [checkin]);
+  useEffect(() => { save("shir_meals", meals); }, [meals]);
+  useEffect(() => { save("shir_weight", weightLog); }, [weightLog]);
+  useEffect(() => { save("shir_chat", chatMessages.slice(-30)); }, [chatMessages]);
   const [chatLoading, setChatLoading] = useState(false);
   const chatEndRef = useRef(null);
   const [encouragement] = useState(() => RAND(ENCOURAGEMENTS));
